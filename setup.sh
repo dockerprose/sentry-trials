@@ -1,27 +1,32 @@
 #!/bin/bash
-set -e
 
-echo -e "\033[1;36m[+] Starting Shadow Sentry Automated Environment Setup...\033[0m"
+# Define a cleanup function to exit the virtual environment
+cleanup() {
+    if [ -n "$VIRTUAL_ENV" ]; then
+        echo -e "\n\033[1;32m[+] Deactivating virtual environment layers cleanly. Returning to Ubuntu.\033[0m"
+        deactivate
+    fi
+}
 
-# 1. Install system dependencies
-echo -e "\033[1;33m[~] Installing system dependencies (Python3 & Venv)...\033[0m"
-sudo apt update -y
-sudo apt install -y python3 python3-pip python3-venv
+# Register the cleanup function to trigger on script exit or user interrupt (Ctrl+C)
+trap cleanup EXIT INT TERM
 
-# 2. Deploy Python Virtual Environment 
-echo -e "\033[1;33m[~] Allocating isolated Python Virtual Environment (venv)...\033[0m"
-python3 -m venv venv
+# 1. Verify or install system dependencies silently
+if ! command -v python3 &> /dev/null || ! dpkg -s python3-venv &> /dev/null; then
+    echo -e "\033[1;33m[~] Provisioning infrastructure dependencies...\033[0m"
+    sudo apt update -y && sudo apt install -y python3 python3-pip python3-venv
+fi
 
-# 3. Activate Virtual Environment and install packages
-source venv/bin/activate
-
-if [ -f "requirements.txt" ]; then
-    echo -e "\033[1;32m[+] Installing module dependencies via Pip inside venv...\033[0m"
+# 2. Build or activate the isolated virtual environment
+if [ ! -d "venv" ]; then
+    echo -e "\033[1;36m[+] Allocating isolated Python Virtual Environment (venv)...\033[0m"
+    python3 -m venv venv
+    source venv/bin/activate
     pip install --upgrade pip
     pip install -r requirements.txt
 else
-    echo -e "\033[1;31m[-] Error: requirements.txt not found!\033[0m"
-    exit 1
+    source venv/bin/activate
 fi
 
-echo -e "\033[1;32m[+] ENVIRONMENT SECURED. Run 'source venv/bin/activate && python run_sentry.py' to launch.\033[0m"
+# 3. Launch the game engine directly (Interactive mode restored!)
+python3 run_sentry.py
